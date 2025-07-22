@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>圖片排版成Word</title>
+</head>
+<body>
+  <h2>請上傳圖片</h2>
+  <input type="file" id="imageInput" accept="image/*" multiple />
+  <button onclick="generateWord()">產生 Word 檔</button>
+
+  <div id="imagePreview" style="display:none;"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.0/html-docx.min.js"></script>
+  <script>
+    const imagePreview = document.getElementById('imagePreview');
+    const imageInput = document.getElementById('imageInput');
+
+    function generateWord() {
+      imagePreview.innerHTML = ''; // 清空
+
+      const files = imageInput.files;
+      if (files.length === 0) {
+        alert('請選擇至少一張圖片');
+        return;
+      }
+
+      imagePreview.style.display = 'block';
+
+      const readerPromises = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        const reader = new FileReader();
+        readerPromises.push(
+          new Promise((resolve) => {
+            reader.onload = function (e) {
+              const img = document.createElement('img');
+              img.src = e.target.result;
+              img.style.maxWidth = '600px';
+              img.style.display = 'block';
+              img.style.marginBottom = '20px';
+              imagePreview.appendChild(img);
+              resolve();
+            };
+            reader.readAsDataURL(file);
+          })
+        );
+      }
+
+      Promise.all(readerPromises).then(() => {
+        const content = '<html>' + imagePreview.innerHTML + '</html>';
+        const converted = htmlDocx.asBlob(content);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(converted);
+        a.download = 'images.docx';
+        a.click();
+      });
+    }
+  </script>
+</body>
+</html>
