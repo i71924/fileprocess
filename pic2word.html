@@ -1,30 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>圖片轉 Word</title>
 </head>
 <body>
   <h2>請上傳圖片</h2>
-  <input type="file" id="imageInput" accept="image/*" multiple />
+  <input type="file" id="imageInput" accept="image/*" multiple>
   <br><br>
   <button onclick="generateWord()">產生 Word 檔</button>
   <button id="downloadBtn" onclick="downloadWord()" disabled>下載 Word 檔</button>
+  <p id="status" style="color:green;"></p>
 
   <div id="imagePreview" style="display:none;"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.0/html-docx.min.js"></script>
   <script>
-    const imagePreview = document.getElementById('imagePreview');
     const imageInput = document.getElementById('imageInput');
+    const imagePreview = document.getElementById('imagePreview');
     const downloadBtn = document.getElementById('downloadBtn');
+    const statusText = document.getElementById('status');
 
-    let wordBlob = null; // 用來儲存產生後的 Word Blob
+    let wordBlob = null;
 
     function generateWord() {
       imagePreview.innerHTML = '';
       wordBlob = null;
       downloadBtn.disabled = true;
+      statusText.textContent = '圖片載入中...';
 
       const files = imageInput.files;
       if (files.length === 0) {
@@ -32,35 +35,39 @@
         return;
       }
 
-      imagePreview.style.display = 'block';
       const readerPromises = [];
-
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
         const reader = new FileReader();
-        readerPromises.push(
-          new Promise((resolve) => {
-            reader.onload = function (e) {
-              const img = document.createElement('img');
-              img.src = e.target.result;
-              img.style.maxWidth = '600px';
-              img.style.display = 'block';
-              img.style.marginBottom = '40px';
-              img.style.pageBreakAfter = 'always'; // 每張圖片換頁
-              imagePreview.appendChild(img);
-              resolve();
-            };
-            reader.readAsDataURL(file);
-          })
-        );
+        const promise = new Promise((resolve, reject) => {
+          reader.onload = function (e) {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.maxWidth = '600px';
+            img.style.display = 'block';
+            img.style.marginBottom = '40px';
+            img.style.pageBreakAfter = 'always';
+            img.onload = () => resolve();  // 圖片成功載入才 resolve
+            img.onerror = () => reject(`圖片載入失敗：${file.name}`);
+            imagePreview.appendChild(img);
+          };
+          reader.readAsDataURL(file);
+        });
+
+        readerPromises.push(promise);
       }
 
-      Promise.all(readerPromises).then(() => {
+      Promise.allSettled(readerPromises).then((results) => {
+        const failed = results.filter(r => r.status === 'rejected');
+        if (failed.length > 0) {
+          alert('有些圖片載入失敗：\n' + failed.map(f => f.reason).join('\n'));
+        }
+
         const htmlContent = '<html><body>' + imagePreview.innerHTML + '</body></html>';
         wordBlob = htmlDocx.asBlob(htmlContent);
-        downloadBtn.disabled = false; // 啟用下載按鈕
-        alert('Word 檔案已建立，請點擊下載');
+        downloadBtn.disabled = false;
+        statusText.textContent = 'Word 檔案已建立，請點擊下載';
       });
     }
 
