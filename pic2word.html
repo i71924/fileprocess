@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>圖片排版成Word</title>
+  <title>圖片轉 Word</title>
 </head>
 <body>
   <h2>請上傳圖片</h2>
   <input type="file" id="imageInput" accept="image/*" multiple />
+  <br><br>
   <button onclick="generateWord()">產生 Word 檔</button>
+  <button id="downloadBtn" onclick="downloadWord()" disabled>下載 Word 檔</button>
 
   <div id="imagePreview" style="display:none;"></div>
 
@@ -15,9 +17,14 @@
   <script>
     const imagePreview = document.getElementById('imagePreview');
     const imageInput = document.getElementById('imageInput');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let wordBlob = null; // 用來儲存產生後的 Word Blob
 
     function generateWord() {
-      imagePreview.innerHTML = ''; // 清空
+      imagePreview.innerHTML = '';
+      wordBlob = null;
+      downloadBtn.disabled = true;
 
       const files = imageInput.files;
       if (files.length === 0) {
@@ -26,7 +33,6 @@
       }
 
       imagePreview.style.display = 'block';
-
       const readerPromises = [];
 
       for (let i = 0; i < files.length; i++) {
@@ -40,7 +46,8 @@
               img.src = e.target.result;
               img.style.maxWidth = '600px';
               img.style.display = 'block';
-              img.style.marginBottom = '20px';
+              img.style.marginBottom = '40px';
+              img.style.pageBreakAfter = 'always'; // 每張圖片換頁
               imagePreview.appendChild(img);
               resolve();
             };
@@ -50,13 +57,22 @@
       }
 
       Promise.all(readerPromises).then(() => {
-        const content = '<html>' + imagePreview.innerHTML + '</html>';
-        const converted = htmlDocx.asBlob(content);
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(converted);
-        a.download = 'images.docx';
-        a.click();
+        const htmlContent = '<html><body>' + imagePreview.innerHTML + '</body></html>';
+        wordBlob = htmlDocx.asBlob(htmlContent);
+        downloadBtn.disabled = false; // 啟用下載按鈕
+        alert('Word 檔案已建立，請點擊下載');
       });
+    }
+
+    function downloadWord() {
+      if (!wordBlob) {
+        alert('請先產生 Word 檔案');
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(wordBlob);
+      a.download = 'images.docx';
+      a.click();
     }
   </script>
 </body>
